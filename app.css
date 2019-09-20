@@ -1,6 +1,34 @@
+body {
+  background: #333;
+  color: #eee;
+  padding: 0;
+  margin: 0;
+  font: 100% sans-serif;
+}
 iframe {
   width: 1px;
   height: 1px;
   position: absolute;
   left: -666px;
+}
+th { text-align: left; font-weight: normal; }
+td { padding-left: 2rem; }
+dd {
+  padding: 0;
+  margin: 0;
+}
+.status:before {
+  content: '';
+  display: inline-block;
+  width: .5rem;
+  height: .5rem;
+  margin-left: -.75rem;
+  margin-right: .25rem;
+  border-radius: .25rem;
+}
+.status[data-value=null]:before { background: #888; }
+.status[data-value=true]:before { background: #0f0; }
+.status[data-value=false]:before { background: #f00; }
+.iframe-with-worker {
+  margin: 1rem;
 }

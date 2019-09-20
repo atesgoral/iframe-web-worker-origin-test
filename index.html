@@ -71,7 +71,7 @@
     };
 
     function Status(props) {
-      return <span>
+      return <span className="status" data-value={String(props.value)}>
         { props.value === null ? '?' : props.value ? 'yes' : 'no' }
       </span>;
     }
@@ -93,14 +93,14 @@
       }
 
       render() {
-        return <div>
-          <dl>
-            <dt>iframe URL type</dt><dd>{this.iframeUrlType}</dd>
-            <dt>Worker URL type</dt><dd>{this.workerUrlType}</dd>
-            <dt>iframe alive</dt><dd><Status value={this.state.isIframeAlive}/></dd>
-            <dt>Worker alive</dt><dd><Status value={this.state.isWorkerAlive}/></dd>
-            <dt>Worker fetch succeeded</dt><dd><Status value={this.state.isWorkerFetchSucceeded}/></dd>
-          </dl>
+        return <div class="iframe-with-worker">
+          <table>
+            <tr><th>iframe URL type</th><td>{this.iframeUrlType}</td></tr>
+            <tr><th>Worker URL type</th><td>{this.workerUrlType}</td></tr>
+            <tr><th>iframe alive</th><td><Status value={this.state.isIframeAlive}/></td></tr>
+            <tr><th>Worker alive</th><td><Status value={this.state.isWorkerAlive}/></td></tr>
+            <tr><th>Worker fetch succeeded</th><td><Status value={this.state.isWorkerFetchSucceeded}/></td></tr>
+          </table>
           <iframe ref={this.iframe}></iframe>
         </div>;
       }
