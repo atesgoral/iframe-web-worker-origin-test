@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>iframe x web worker x data x blob</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="text/babel">
+    const e = React.createElement;
+
+    const urlToFetch = window.location.toString();
+
+    function buildDataUrl(content, type) {
+      return `data:${type};,${encodeURIComponent(content)}`
+    }
+
+    function buildBlobUrl(content, type) {
+      const blob = new Blob([ content ], { type });
+      return URL.createObjectURL(blob);
+    }
+
+    function getUrlBuilder(type) {
+      return type === 'data' ? buildDataUrl : buildBlobUrl;
+    }
+
+    function workerRuntime(urlToFetch) {
+      function notify(type, data) {
+        self.postMessage({ type, data });
+      }
+
+      notify('WORKER_ALIVE', { origin: location.origin });
+
+      fetch(urlToFetch)
+        .then((res) => res.text())
+        .then(() => notify('WORKER_FETCH_SUCCESS'))
+        .catch((error) => notify('WORKER_FETCH_ERROR', { message: error.message }));
+    }
+
+    function iframeRuntime(name, workerRuntime, urlToFetch, buildWorkerUrl) {
+      function notify(type, data) {
+        parent.postMessage({ type, source: name, data }, '*');
+      }
+
+      notify('IFRAME_ALIVE', { origin: location.origin });
+
+      const src = `(${workerRuntime})(
+        ${JSON.stringify(urlToFetch)}
+      )`;
+      const url = buildWorkerUrl(src, 'text/javascript');
+
+      const worker = new Worker(url);
+
+      worker.onmessage = (event) => notify(event.data.type, event.data.data);
+    }
+
+    const iframeMessageHandlers = {};
+
+    window.onmessage = (event) => {
+      const messageHandler = iframeMessageHandlers[event.data.source];
+
+      if (messageHandler) {
+        messageHandler(event.data);
+      }
+    };
+
+    function Status(props) {
+      return <span>
+        { props.value === null ? '?' : props.value ? 'yes' : 'no' }
+      </span>;
+    }
+
+    class IframeWithWorker extends React.Component {
+      constructor(props) {
+        super(props);
+
+        this.iframeUrlType = props.iframeUrlType;
+        this.workerUrlType = props.workerUrlType;
+
+        this.state = {
+          isIframeAlive: null,
+          isWorkerAlive: null,
+          isWorkerFetchSucceeded: null
+        };
+
+        this.iframe = React.createRef();
+      }
+
+      render() {
+        return <div>
+          <dl>
+            <dt>iframe URL type</dt><dd>{this.iframeUrlType}</dd>
+            <dt>Worker URL type</dt><dd>{this.workerUrlType}</dd>
+            <dt>iframe alive</dt><dd><Status value={this.state.isIframeAlive}/></dd>
+            <dt>Worker alive</dt><dd><Status value={this.state.isWorkerAlive}/></dd>
+            <dt>Worker fetch succeeded</dt><dd><Status value={this.state.isWorkerFetchSucceeded}/></dd>
+          </dl>
+          <iframe ref={this.iframe}></iframe>
+        </div>;
+      }
+
+      componentDidMount() {
+        const iframeName = `iframe-${this.iframeUrlType}-${this.workerUrlType}`;
+
+        const buildIframeUrl = getUrlBuilder(this.iframeUrlType);
+        const buildWorkerUrl = getUrlBuilder(this.workerUrlType);
+
+        const src = `(${iframeRuntime})(
+          ${JSON.stringify(iframeName)},
+          ${workerRuntime},
+          ${JSON.stringify(urlToFetch)},
+          ${buildWorkerUrl}
+        )`;
+        const html = `<${'script'}>${src}</${'script'}>`;
+        const url = buildIframeUrl(html, 'text/html');
+
+        this.iframe.current.src = url;
+
+        iframeMessageHandlers[iframeName] = (message) => {
+          switch (message.type) {
+            case 'IFRAME_ALIVE':
+              this.setState({ isIframeAlive: true });
+              break;
+            case 'WORKER_ALIVE':
+              this.setState({ isWorkerAlive: true });
+              break;
+            case 'WORKER_FETCH_SUCCESS':
+              this.setState({ isWorkerFetchSucceeded: true });
+              break;
+            case 'WORKER_FETCH_ERROR':
+              this.setState({ isWorkerFetchSucceeded: false });
+              break;
+          }
+        };
+      }
+
+      componentWillUnmount() {
+        iframeMessageHandlers[iframeName] = null;
+      }
+    }
+
+    function App() {
+      return <div>
+        <IframeWithWorker iframeUrlType="data" workerUrlType="data"/>
+        <IframeWithWorker iframeUrlType="data" workerUrlType="blob"/>
+        <IframeWithWorker iframeUrlType="blob" workerUrlType="data"/>
+        <IframeWithWorker iframeUrlType="blob" workerUrlType="blob"/>
+      </div>;
+    }
+
+    ReactDOM.render(e(App), document.querySelector('#app'));
+  </script>
+</body>
+</html>
+
+
+
+
